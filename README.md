@@ -1,25 +1,31 @@
-# qoot
+# qemt — Q Emergency Tools
 
-**A sudo alternative built entirely on raw Linux syscalls — zero glibc dependency.**
+**A complete Unix toolkit built entirely on raw Linux syscalls — zero glibc dependency.**
 
-qoot is a minimal privilege escalation tool for Linux x86_64 that operates without *any* C library. It uses inline assembly to make direct system calls to the Linux kernel, serving as an emergency backup `sudo` for when your system's glibc is broken.
+qemt is a full set of essential Unix command-line tools for Linux x86_64 that operate without *any* C library. Every binary uses inline assembly to make direct system calls to the Linux kernel. When your system's glibc is broken, these tools still work.
 
 ## The Problem
 
-I've been experimenting with updating and modifying the glibc framework on my system, and I've bricked it — multiple times. When glibc breaks, almost everything on the system stops working, including `sudo`. That means you can't even fix the problem because you have no way to get root access. You're completely locked out of your own machine.
+I've been experimenting with updating and modifying the glibc framework on my system, and I've bricked it — multiple times. When glibc breaks, almost everything on the system stops working. Not just `sudo` — `ls`, `cat`, `cp`, `mv`, `grep`, `mount`, the shell itself — anything dynamically linked against glibc is dead. You're completely locked out of your own machine with no way to fix it short of booting a live USB.
 
-Standard `sudo` dynamically links against glibc. If glibc is missing, corrupted, or incompatible, `sudo` simply won't launch. Neither will `su`, `pkexec`, or pretty much any other binary on the system that wasn't statically compiled.
+**qemt exists so that never happens again.** It's a complete emergency toolkit — 48 essential Unix tools plus a sudo replacement — all statically compiled with zero library dependencies. As long as the kernel is running, qemt works. Toggle it on with `qemt on`, fix your system, toggle it off with `qemt off`.
 
-**qoot exists so that never happens again.** It's a statically compiled, glibc-free `sudo` replacement that talks directly to the Linux kernel through raw syscalls. As long as the kernel is running, qoot works — no matter how badly you've broken userspace.
+## Tools Included (48+)
 
-## Features
+| Category | Tools |
+|----------|-------|
+| **File Operations** | `ls` `cat` `cp` `mv` `rm` `mkdir` `rmdir` `touch` `find` `du` |
+| **Text Processing** | `grep` `head` `tail` `sort` `uniq` `wc` `tr` `tee` |
+| **File Info** | `stat` `chmod` `chown` `ln` `readlink` `basename` `dirname` |
+| **System Info** | `whoami` `id` `which` `pwd` `uname` `hostname` `date` `env` `echo` `uptime` `free` |
+| **Process Mgmt** | `ps` `kill` `sleep` |
+| **System Admin** | `mount` `umount` `df` `dmesg` `reboot` `poweroff` |
+| **Privilege Escalation** | `sudo` (glibc-free sudo replacement) |
+| **Network** | `wget` (HTTP, raw sockets) |
+| **Shell** | `sh` (emergency shell with pipes, redirects, PATH lookup) |
+| **Utility** | `clear` |
 
-- **Zero library dependencies** — statically compiled, no glibc/musl/anything
-- **Raw syscalls only** — talks directly to the Linux kernel via `syscall` instruction
-- **Tiny binary** — typically under 20KB
-- **Simple config** — single file at `/etc/qoot.conf`
-- **Setuid-based** — standard Unix privilege escalation model
-- **Survives a bricked glibc** — the whole point
+Every single one uses **raw Linux syscalls** via inline assembly. No glibc. No musl. No libc at all.
 
 ## Building
 
@@ -27,109 +33,157 @@ Standard `sudo` dynamically links against glibc. If glibc is missing, corrupted,
 make
 ```
 
-That's it. Just needs `gcc` — no libraries, no headers from libc.
+Just needs `gcc`. No libraries, no libc headers.
 
 ### Verify no dependencies
 
 ```bash
 make verify
-# Should show: "not a dynamic executable" or "statically linked"
+# Every tool should show: "not a dynamic executable"
 ```
 
 ## Installing
 
 ```bash
-sudo make install
+sudo make install-rescue
 ```
 
-This will:
-1. Copy the binary to `/usr/local/bin/qoot`
-2. Set ownership to `root:root` with setuid bit (`4755`)
-3. Install a default config to `/etc/qoot.conf` (if none exists)
+This installs:
+1. All tools to `/usr/local/qemt/` with their original names (`ls`, `cat`, `sudo`, etc.)
+2. The `qemt.sh` shell function to `/usr/local/share/qemt/qemt.sh`
+3. Default config to `/etc/qemt.conf` (for the sudo tool)
+4. The `sudo` binary gets setuid root (`4755`)
 
-## Configuration
+### Setup
 
-Edit `/etc/qoot.conf`:
+Add to your `~/.bashrc` or `~/.profile`:
+
+```bash
+source /usr/local/share/qemt/qemt.sh
+```
+
+## Usage — Switching On and Off
+
+```bash
+# Activate qemt (shadows all system tools with glibc-free versions)
+qemt on
+
+# Now all commands use the emergency toolkit:
+ls /root          # uses /usr/local/qemt/ls
+sudo apt update   # uses /usr/local/qemt/sudo
+cat /etc/fstab    # uses /usr/local/qemt/cat
+grep root /etc/passwd  # uses /usr/local/qemt/grep
+
+# Deactivate (restore normal system tools)
+qemt off
+
+# Check status
+qemt status
+
+# List available tools
+qemt list
+```
+
+### How `qemt on/off` Works
+
+It's simple and non-invasive — just PATH manipulation:
+
+- **`qemt on`** — Prepends `/usr/local/qemt` to your `PATH` and saves the original. All commands now resolve to the qemt versions first.
+- **`qemt off`** — Restores your original `PATH`. System tools are back.
+
+No symlinks created, no system files modified, no services restarted. Just an environment variable change in your current shell.
+
+## sudo Configuration
+
+The qemt `sudo` replacement reads `/etc/qemt.conf`:
 
 ```bash
 # Allow a specific user (password prompt)
 myuser
 
-# Allow a user without password
+# Allow user without password
 myuser NOPASSWD
 
-# Allow ALL users (password prompt)
+# Allow ALL users
 ALL
 
 # Allow ALL users without password
 ALL NOPASSWD
 ```
 
-## Usage
-
-```bash
-# Run a command as root
-qoot apt update
-
-# Spawn a root shell
-qoot -s
-
-# Run as a specific user
-qoot -u www-data nginx -t
-
-# Version info
-qoot -v
-```
-
 ## How It Works
 
-qoot uses **no C library at all**. Every operation is performed through raw Linux syscalls via inline assembly:
+Every tool uses **no C library at all**. All operations go through raw Linux syscalls via inline assembly:
 
 | Operation | Syscall Used |
 |-----------|-------------|
-| Read files | `SYS_read`, `SYS_open` |
-| Write output | `SYS_write` |
-| Check permissions | `SYS_access`, `SYS_getuid`, `SYS_geteuid` |
-| Set credentials | `SYS_setresuid`, `SYS_setresgid`, `SYS_setgroups` |
-| Execute commands | `SYS_execve` |
-| Terminal I/O | `SYS_ioctl` (for password input with echo disabled) |
+| Read/write files | `SYS_read`, `SYS_write`, `SYS_open`, `SYS_close` |
+| Directory listing | `SYS_getdents64` |
+| File metadata | `SYS_stat`, `SYS_lstat`, `SYS_fstat`, `SYS_access` |
+| File manipulation | `SYS_rename`, `SYS_unlink`, `SYS_mkdir`, `SYS_rmdir`, `SYS_chmod`, `SYS_chown` |
+| Process control | `SYS_fork`, `SYS_execve`, `SYS_wait4`, `SYS_kill` |
+| Privilege escalation | `SYS_setresuid`, `SYS_setresgid`, `SYS_setgroups` |
+| System info | `SYS_uname`, `SYS_sysinfo`, `SYS_clock_gettime` |
+| Networking | `SYS_socket`, `SYS_connect`, `SYS_sendto`, `SYS_recvfrom` |
+| Terminal I/O | `SYS_ioctl` |
+| Mount/unmount | `SYS_mount`, `SYS_umount2` |
 | Process start | Custom `_start` entry point (no `crt0`) |
 
-The binary entry point is a hand-written `_start` in assembly that extracts `argc`, `argv`, and `envp` from the stack — exactly as the kernel leaves them.
+The entry point for every binary is a hand-written `_start` in assembly that extracts `argc`, `argv`, and `envp` from the stack — exactly as the kernel leaves them.
 
 ## Architecture
 
 ```
-src/
-├── qoot.c       # Main program + _start entry point
-├── syscalls.h   # Raw syscall wrappers (inline asm)
-├── string.h     # String utilities (no libc)
-└── auth.h       # Authentication & authorization
+include/
+├── syscalls.h   # Raw syscall wrappers (inline asm, 60+ syscalls)
+├── types.h      # Type definitions (no libc headers)
+├── string.h     # String utilities
+├── io.h         # I/O helpers (file reading, line parsing)
+└── auth.h       # sudo authentication & authorization
+
+tools/
+├── sudo.c       # Privilege escalation (setuid root)
+├── ls.c         # Directory listing
+├── cat.c        # File concatenation
+├── cp.c         # File copy
+├── mv.c         # File move/rename
+├── rm.c         # File removal
+├── grep.c       # Pattern matching
+├── sh.c         # Emergency shell
+├── wget.c       # HTTP downloads (raw sockets)
+├── ...          # 48 tools total
+└── (each is a standalone binary)
+
+qemt.sh          # Shell function for on/off switching
+qemt.conf.example # sudo config template
 ```
 
 ## Security Notes
 
-- The binary **must** be installed setuid root (`chmod 4755`)
-- Authorization is checked against `/etc/qoot.conf`
-- A clean, minimal environment is constructed for child processes
-- Supplementary groups are cleared before privilege transition
-- Password memory is zeroed after use
+- `sudo` binary **must** be setuid root (`chmod 4755`)
+- Authorization checked against `/etc/qemt.conf`
+- Clean, minimal environment constructed for child processes
+- Supplementary groups cleared before privilege transition
+- Password memory zeroed after use
 - Uses `setresuid`/`setresgid` for complete credential transition
+- `qemt on/off` only modifies PATH — no system files touched
 
 ### Limitations
 
 - **x86_64 Linux only** — syscall numbers and ABI are architecture-specific
-- Password verification against `/etc/shadow` hashes requires implementing SHA-512 crypt natively (planned). For now, use `NOPASSWD` mode or the password prompt acts as a basic gate.
+- Password verification against `/etc/shadow` hashes requires SHA-512 crypt (planned). Use `NOPASSWD` mode or the password prompt acts as a gate.
 - No PAM integration (by design — PAM requires glibc)
+- `wget` supports HTTP only (no HTTPS without a TLS library)
+- `sh` is minimal — supports pipes, redirects, PATH, and builtins but not full bash features
 
 ## Use Cases
 
-1. **Broken glibc recovery** — The primary reason this exists. When you brick glibc experimenting with updates, qoot is the tool that lets you fix it without booting a live USB.
-2. **glibc development/testing** — If you're actively working on or testing glibc builds, install qoot first as your safety net.
-3. **Minimal containers** — Scratch/distroless containers with no libc
-4. **Embedded systems** — Tiny footprint privilege escalation
-5. **Education** — Learn how Linux syscalls work at the lowest level
+1. **Broken glibc recovery** — The primary reason this exists. When you brick glibc experimenting with updates, `qemt on` gives you a full working toolkit to fix it without a live USB.
+2. **glibc development/testing** — If you're actively working on or testing glibc builds, install qemt first as your safety net.
+3. **Minimal containers** — Scratch/distroless containers with no libc need tools too.
+4. **Embedded systems** — Tiny footprint, complete toolkit.
+5. **Education** — Learn how Unix tools work at the lowest level — raw syscalls, no abstraction.
 
 ## License
 
-MIT
+MIT — Copyright (c) 2026 Quaylyn Rimer

@@ -1,6 +1,7 @@
-# /etc/qoot.conf - qoot authorization configuration
+# /etc/qemt.conf - qemt sudo authorization configuration
 #
-# This file controls who can use qoot to gain elevated privileges.
+# This file controls who can use the qemt sudo tool to gain
+# elevated privileges when the emergency toolkit is active.
 #
 # Format:
 #   username             - Allow user (will prompt for password)
