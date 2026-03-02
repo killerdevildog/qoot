@@ -295,8 +295,37 @@ int qoot_main(int argc, char **argv, char **envp) {
 
     /* Password check (unless NOPASSWD) */
     if (real_uid != 0 && !check_nopasswd(real_uid)) {
+        /* Look up caller's username for the prompt */
+        char caller_name[64];
+        caller_name[0] = '\0';
+        int pfd = sys_open("/etc/passwd", O_RDONLY, 0);
+        if (pfd >= 0) {
+            char pline[1024];
+            while (read_line(pfd, pline, 1024) > 0) {
+                char *pp = pline;
+                char *un = pp;
+                while (*pp && *pp != ':') pp++;
+                if (*pp != ':') continue;
+                *pp++ = '\0';
+                while (*pp && *pp != ':') pp++;
+                if (*pp != ':') continue;
+                pp++;
+                if (str_to_uint(pp) == real_uid) {
+                    str_ncpy(caller_name, un, 63);
+                    caller_name[63] = '\0';
+                    break;
+                }
+            }
+            sys_close(pfd);
+        }
+
         char password[256];
-        print("[qoot] password for user: ");
+        print("[qoot] password for ");
+        if (caller_name[0] != '\0')
+            print(caller_name);
+        else
+            print("user");
+        print(": ");
         int pw_len = read_password("", password, sizeof(password));
         if (pw_len < 0) {
             eprint("qoot: failed to read password\n");
