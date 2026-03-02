@@ -2,17 +2,24 @@
 
 **A sudo alternative built entirely on raw Linux syscalls — zero glibc dependency.**
 
-qoot is a minimal privilege escalation tool for Linux x86_64 that operates without *any* C library. It uses inline assembly to make direct system calls to the Linux kernel, making it ideal as an emergency/backup sudo when your system's glibc is broken, missing, or compromised.
+qoot is a minimal privilege escalation tool for Linux x86_64 that operates without *any* C library. It uses inline assembly to make direct system calls to the Linux kernel, serving as an emergency backup `sudo` for when your system's glibc is broken.
 
-## Why?
+## The Problem
 
-If glibc gets corrupted, updated badly, or you're working in a minimal environment without it, standard `sudo` won't work — it dynamically links against glibc. **qoot** is your safety net:
+I've been experimenting with updating and modifying the glibc framework on my system, and I've bricked it — multiple times. When glibc breaks, almost everything on the system stops working, including `sudo`. That means you can't even fix the problem because you have no way to get root access. You're completely locked out of your own machine.
+
+Standard `sudo` dynamically links against glibc. If glibc is missing, corrupted, or incompatible, `sudo` simply won't launch. Neither will `su`, `pkexec`, or pretty much any other binary on the system that wasn't statically compiled.
+
+**qoot exists so that never happens again.** It's a statically compiled, glibc-free `sudo` replacement that talks directly to the Linux kernel through raw syscalls. As long as the kernel is running, qoot works — no matter how badly you've broken userspace.
+
+## Features
 
 - **Zero library dependencies** — statically compiled, no glibc/musl/anything
 - **Raw syscalls only** — talks directly to the Linux kernel via `syscall` instruction
 - **Tiny binary** — typically under 20KB
 - **Simple config** — single file at `/etc/qoot.conf`
 - **Setuid-based** — standard Unix privilege escalation model
+- **Survives a bricked glibc** — the whole point
 
 ## Building
 
@@ -117,10 +124,10 @@ src/
 
 ## Use Cases
 
-1. **Broken glibc recovery** — When a bad update bricks glibc, qoot still works
-2. **Minimal containers** — Scratch/distroless containers with no libc
-3. **Embedded systems** — Tiny footprint privilege escalation
-4. **Security hardening** — Reduce attack surface by eliminating libc dependency
+1. **Broken glibc recovery** — The primary reason this exists. When you brick glibc experimenting with updates, qoot is the tool that lets you fix it without booting a live USB.
+2. **glibc development/testing** — If you're actively working on or testing glibc builds, install qoot first as your safety net.
+3. **Minimal containers** — Scratch/distroless containers with no libc
+4. **Embedded systems** — Tiny footprint privilege escalation
 5. **Education** — Learn how Linux syscalls work at the lowest level
 
 ## License
