@@ -99,6 +99,24 @@
 #define SYS_openat        257
 #define SYS_utimensat     280
 
+/* Memory mapping */
+#define SYS_mmap            9
+#define SYS_munmap         11
+#define SYS_mprotect       10
+
+/* Additional syscalls */
+#define SYS_ftruncate      77
+#define SYS_nanosleep      35
+#define SYS_getrandom     318
+#define SYS_bind           49
+#define SYS_listen         50
+#define SYS_accept         43
+#define SYS_setsockopt     54
+#define SYS_getsockname    51
+#define SYS_ttyname         0  /* not a real syscall, use /proc */
+#define SYS_sysinfo        99
+#define SYS_fcntl          72
+
 /* ===== Raw Syscall Invocations ===== */
 
 static inline long syscall0(long n) {
@@ -372,6 +390,71 @@ static inline ssize_t sys_recvfrom(int sockfd, void *buf, size_t len, int flags,
 
 static inline int sys_shutdown(int sockfd, int how) {
     return (int)syscall2(SYS_shutdown, sockfd, how);
+}
+
+static inline int sys_bind(int sockfd, const void *addr, socklen_t addrlen) {
+    return (int)syscall3(SYS_bind, sockfd, (long)addr, addrlen);
+}
+
+static inline int sys_listen(int sockfd, int backlog) {
+    return (int)syscall2(SYS_listen, sockfd, backlog);
+}
+
+static inline int sys_accept(int sockfd, void *addr, socklen_t *addrlen) {
+    return (int)syscall3(SYS_accept, sockfd, (long)addr, (long)addrlen);
+}
+
+static inline int sys_setsockopt(int sockfd, int level, int optname,
+                                  const void *optval, socklen_t optlen) {
+    return (int)syscall5(SYS_setsockopt, sockfd, level, optname, (long)optval, optlen);
+}
+
+static inline int sys_getsockname(int sockfd, void *addr, socklen_t *addrlen) {
+    return (int)syscall3(SYS_getsockname, sockfd, (long)addr, (long)addrlen);
+}
+
+/* ===== Memory Mapping ===== */
+
+#define PROT_READ   0x1
+#define PROT_WRITE  0x2
+#define PROT_EXEC   0x4
+#define MAP_PRIVATE 0x02
+#define MAP_ANONYMOUS 0x20
+#define MAP_FAILED  ((void *)-1)
+
+static inline void *sys_mmap(void *addr, size_t length, int prot, int flags,
+                              int fd, off_t offset) {
+    /* mmap uses 6 args: syscall6 needed */
+    long ret;
+    register long r10 __asm__("r10") = (long)flags;
+    register long r8  __asm__("r8")  = (long)fd;
+    register long r9  __asm__("r9")  = (long)offset;
+    __asm__ volatile ("syscall"
+        : "=a"(ret)
+        : "a"((long)SYS_mmap), "D"((long)addr), "S"((long)length),
+          "d"((long)prot), "r"(r10), "r"(r8), "r"(r9)
+        : "rcx", "r11", "memory");
+    return (void *)ret;
+}
+
+static inline int sys_munmap(void *addr, size_t length) {
+    return (int)syscall2(SYS_munmap, (long)addr, (long)length);
+}
+
+static inline int sys_ftruncate(int fd, off_t length) {
+    return (int)syscall2(SYS_ftruncate, fd, length);
+}
+
+static inline int sys_nanosleep(const struct timespec *req, struct timespec *rem) {
+    return (int)syscall2(SYS_nanosleep, (long)req, (long)rem);
+}
+
+static inline ssize_t sys_getrandom(void *buf, size_t buflen, unsigned int flags) {
+    return (ssize_t)syscall3(SYS_getrandom, (long)buf, (long)buflen, (long)flags);
+}
+
+static inline int sys_fcntl(int fd, int cmd, long arg) {
+    return (int)syscall3(SYS_fcntl, fd, cmd, arg);
 }
 
 #endif /* QEMT_SYSCALLS_H */

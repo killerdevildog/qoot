@@ -37,6 +37,18 @@ static inline void write_str(int fd, const char *s) {
     sys_write(fd, s, str_len(s));
 }
 
+/* Write full buffer to fd (handles partial writes) */
+static inline int write_all(int fd, const void *buf, size_t len) {
+    const unsigned char *p = (const unsigned char *)buf;
+    while (len > 0) {
+        ssize_t w = sys_write(fd, p, len);
+        if (w <= 0) return -1;
+        p += (size_t)w;
+        len -= (size_t)w;
+    }
+    return 0;
+}
+
 /* Write to stdout / stderr */
 static inline void print(const char *s) { write_str(1, s); }
 static inline void eprint(const char *s) { write_str(2, s); }

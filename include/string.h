@@ -238,4 +238,31 @@ static inline int ends_with(const char *s, const char *suffix) {
     return str_cmp(s + sl - xl, suffix) == 0;
 }
 
+/* Hex conversion */
+static inline int ulong_to_hex(char *buf, unsigned long val, int upper) {
+    const char *digits = upper ? "0123456789ABCDEF" : "0123456789abcdef";
+    char tmp[17];
+    int i = 0;
+    if (val == 0) { buf[0] = '0'; buf[1] = '\0'; return 1; }
+    while (val > 0) { tmp[i++] = digits[val & 0xf]; val >>= 4; }
+    int len = i;
+    for (int j = 0; j < len; j++) buf[j] = tmp[len - 1 - j];
+    buf[len] = '\0';
+    return len;
+}
+
+static inline unsigned long hex_to_ulong(const char *s) {
+    unsigned long val = 0;
+    if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) s += 2;
+    while (*s) {
+        char c = *s;
+        if (c >= '0' && c <= '9') val = (val << 4) | (unsigned long)(c - '0');
+        else if (c >= 'a' && c <= 'f') val = (val << 4) | (unsigned long)(c - 'a' + 10);
+        else if (c >= 'A' && c <= 'F') val = (val << 4) | (unsigned long)(c - 'A' + 10);
+        else break;
+        s++;
+    }
+    return val;
+}
+
 #endif /* QEMT_STRING_H */

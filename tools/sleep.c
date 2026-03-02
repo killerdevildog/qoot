@@ -8,12 +8,6 @@
 
 #include "../include/io.h"
 
-#define SYS_nanosleep 35
-
-static long sys_nanosleep(const struct timespec *req, struct timespec *rem) {
-    return syscall2(SYS_nanosleep, (long)req, (long)rem);
-}
-
 int sleep_main(int argc, char **argv, char **envp) {
     (void)envp;
     if (argc < 2) { eprint("Usage: sleep seconds\n"); return 1; }

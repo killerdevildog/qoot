@@ -169,8 +169,12 @@ typedef unsigned long  socklen_t;
 
 /* Socket */
 #define AF_INET     2
+#define AF_INET6   10
 #define SOCK_STREAM 1
+#define SOCK_DGRAM  2
 #define IPPROTO_TCP 6
+#define SOL_SOCKET  1
+#define SO_REUSEADDR 2
 
 /* stat structure (x86_64 Linux) */
 struct stat {
