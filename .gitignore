@@ -1,0 +1,19 @@
+# Build output
+build/
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Compiled objects
+*.o
+*.obj
+
+# Debug
+*.dSYM/

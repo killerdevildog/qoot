@@ -1,0 +1,22 @@
+# /etc/qoot.conf - qoot authorization configuration
+#
+# This file controls who can use qoot to gain elevated privileges.
+#
+# Format:
+#   username             - Allow user (will prompt for password)
+#   username NOPASSWD    - Allow user without password prompt
+#   ALL                  - Allow all users (will prompt for password)
+#   ALL NOPASSWD         - Allow all users without password prompt
+#   # comment            - Lines starting with # are ignored
+#
+# Examples:
+#   admin
+#   deploy NOPASSWD
+#   ALL
+
+# Allow all users (with password prompt by default)
+# Uncomment the line below to enable:
+# ALL
+
+# Allow specific users without password:
+# myuser NOPASSWD
