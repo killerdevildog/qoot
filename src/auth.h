@@ -107,7 +107,7 @@ static int is_user_authorized(uid_t uid) {
             trimmed[--len] = '\0';
         }
 
-        if (str_cmp(trimmed, "ALL") == 0) {
+        if (str_cmp(trimmed, "ALL") == 0 || starts_with(trimmed, "ALL ")) {
             authorized = 1;
             break;
         }
@@ -115,6 +115,15 @@ static int is_user_authorized(uid_t uid) {
         if (str_cmp(trimmed, username) == 0) {
             authorized = 1;
             break;
+        }
+
+        /* Check for "username NOPASSWD" or "username <anything>" */
+        if (starts_with(trimmed, username)) {
+            size_t ulen = str_len(username);
+            if (trimmed[ulen] == '\0' || trimmed[ulen] == ' ' || trimmed[ulen] == '\t') {
+                authorized = 1;
+                break;
+            }
         }
     }
 

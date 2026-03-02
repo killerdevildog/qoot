@@ -16,7 +16,7 @@
 #define SYS_stat        4
 #define SYS_fstat       5
 #define SYS_lstat       6
-#define SYS_access      7
+#define SYS_access      21
 #define SYS_getuid      102
 #define SYS_getgid      104
 #define SYS_setuid      105

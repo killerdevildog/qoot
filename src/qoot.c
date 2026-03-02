@@ -190,6 +190,19 @@ static void print_version(void) {
  */
 int qoot_main(int argc, char **argv, char **envp) {
     (void)envp;
+
+    /* Handle -v and -h before anything else (no setuid needed) */
+    if (argc >= 2) {
+        if (str_cmp(argv[1], "-v") == 0 || str_cmp(argv[1], "--version") == 0) {
+            print_version();
+            return 0;
+        }
+        if (str_cmp(argv[1], "-h") == 0 || str_cmp(argv[1], "--help") == 0) {
+            print_usage();
+            return 0;
+        }
+    }
+
     uid_t real_uid = sys_getuid();
     uid_t effective_uid = sys_geteuid();
 
